@@ -1,0 +1,13 @@
+{
+  "name": "pmtest",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "parcel": "^2.6.2",
+    "prosemirror-example-setup": "^1.2.1",
+    "prosemirror-model": "^1.18.1",
+    "prosemirror-schema-basic": "^1.2.0",
+    "prosemirror-state": "^1.4.1",
+    "prosemirror-view": "^1.26.5"
+  }
+}
