@@ -6,7 +6,7 @@ import {
 import { EditorView } from "prosemirror-view";
 import { schema } from "prosemirror-schema-basic";
 import { exampleSetup } from "prosemirror-example-setup";
-// const { log } = console;
+const { log } = console;
 
 const SeekDirection = {
   Forwards: "fwd",
@@ -35,63 +35,55 @@ const getCursorAtWholeWord = ({
   return i - directionToInt;
 };
 
+const modifySelection = (view) => {
+  const state = view.state,
+    selection = view.state.selection,
+    doc = view.state.doc,
+    from = view.state.selection.from,
+    to = view.state.selection.to;
+  if (selection.empty) return;
+  const { newFrom, newTo } = {
+    newFrom: getCursorAtWholeWord({
+      direction: SeekDirection.Backwards,
+      cursorStart: from - 1,
+      string: doc.textContent,
+    }),
+    newTo: getCursorAtWholeWord({
+      direction: SeekDirection.Forwards,
+      cursorStart: to - 1,
+      string: doc.textContent,
+    }),
+  };
+  const newSelection = TextSelection.create(
+    doc,
+    newFrom + 1,
+    newTo + 2
+  );
+  const newSelectionTrax = state.tr.setSelection(newSelection);
+  view.updateState(state.apply(newSelectionTrax));
+};
+
 const wholeWordSelectionPlugin = new Plugin({
   props: {
-    createSelectionBetween: (view_, anchor, head) => {
-      if (anchor.pos === head.pos) return;
-      const doc = view_.state.doc;
-      const start = anchor.pos > head.pos ? head.pos : anchor.pos;
-      const end = anchor.pos > head.pos ? anchor.pos : head.pos;
-      const plainText = document.querySelector(
-        "#editor .ProseMirror"
-      ).innerText;
-      const { newStart, newEnd } = {
-        newStart: getCursorAtWholeWord({
-          direction: SeekDirection.Backwards,
-          cursorStart: start - 1,
-          string: plainText,
-        }),
-        newEnd: getCursorAtWholeWord({
-          direction: SeekDirection.Forwards,
-          cursorStart: end - 1,
-          string: plainText,
-        }),
-      };
-      // log(start, end, newStart, newEnd);
-      return TextSelection.create(doc, newStart + 1, newEnd + 2);
+    handleDOMEvents: {
+      mouseup: (view) => {
+        modifySelection(view);
+        return true;
+      },
+      keyup: (view, event) => {
+        if (
+          event.shiftKey &&
+          [37, 38, 39, 40].includes(event.keyCode)
+        ) {
+          modifySelection(view);
+        }
+        return true;
+      },
     },
   },
 });
 
 const editorView = new EditorView(document.querySelector("#editor"), {
-  // dispatchTransaction: (tr) => {
-  //   const { selection } = tr;
-  //   if (!selection.empty) {
-  //     const { from, to } = selection;
-  //     const plainText = document.querySelector(
-  //       "#editor .ProseMirror"
-  //     ).innerText;
-  //     const newBackwardCursor = getCursorAtWholeWord({
-  //       direction: SeekDirection.Backwards,
-  //       string: plainText,
-  //       cursorStart: from - 1,
-  //     });
-  //     const newFwdCursor = getCursorAtWholeWord({
-  //       direction: SeekDirection.Forwards,
-  //       string: plainText,
-  //       cursorStart: to - 1,
-  //     });
-  //     console.log({ from, to, newFwdCursor, newBackwardCursor });
-  //     tr.setSelection(
-  //       TextSelection.create(
-  //         tr.doc,
-  //         newBackwardCursor + 1,
-  //         newFwdCursor + 2
-  //       )
-  //     );
-  //   }
-  //   editorView.updateState(editorView.state.apply(tr));
-  // },
   state: EditorState.create({
     schema,
     plugins: [].concat(
