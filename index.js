@@ -8,57 +8,64 @@ import { schema } from "prosemirror-schema-basic";
 import { exampleSetup } from "prosemirror-example-setup";
 const { log } = console;
 
-const SeekDirection = {
-  Forwards: "fwd",
-  Backwards: "back",
+const separators = [" ", ".", ",", "\n", "\t", "\r\n"];
+
+const getTextBetween = ({ doc, from, to }) => {
+  return doc.textBetween(from, to, "\n");
 };
 
-const getCursorAtWholeWord = ({
-  direction = SeekDirection.Forwards,
-  string = "",
-  cursorStart = 0,
-} = {}) => {
-  let directionToInt = direction === SeekDirection.Backwards ? -1 : 1;
-  let i =
-    direction === SeekDirection.Backwards
-      ? cursorStart
-      : cursorStart - 1;
-  while (string.substr(i, 1) !== " ") {
-    if (direction === SeekDirection.Backwards && i <= 0) return 0;
-    if (direction === SeekDirection.Forwards && i >= string.length)
-      return string.length - 1;
-    if (["\n", "\t", " "].includes(string.substr(i, 1))) {
-      break;
+const getFromCursor = ({ doc, initFrom, initTo }) => {
+  let done = false;
+  let cursor = initFrom;
+  while (!done) {
+    let text = getTextBetween({
+      doc,
+      from: cursor,
+      to: initTo,
+    });
+    if (separators.includes(text[0])) {
+      done = true;
+      return cursor + 1;
     }
-    i = i + directionToInt;
+    cursor--;
   }
-  return i - directionToInt;
+};
+
+const getToCursor = ({ doc, initFrom, initTo }) => {
+  let done = false;
+  let cursor = initTo;
+  while (!done) {
+    let text = getTextBetween({
+      doc,
+      from: initFrom,
+      to: cursor,
+    });
+    if (separators.includes(text[text.length - 1])) {
+      done = true;
+      return cursor - 1;
+    }
+    cursor++;
+  }
 };
 
 const modifySelection = (view) => {
   const state = view.state,
     selection = view.state.selection,
-    doc = view.state.doc,
     from = view.state.selection.from,
-    to = view.state.selection.to;
+    to = view.state.selection.to,
+    doc = view.state.doc;
   if (selection.empty) return;
-  const { newFrom, newTo } = {
-    newFrom: getCursorAtWholeWord({
-      direction: SeekDirection.Backwards,
-      cursorStart: from - 1,
-      string: doc.textContent,
-    }),
-    newTo: getCursorAtWholeWord({
-      direction: SeekDirection.Forwards,
-      cursorStart: to - 1,
-      string: doc.textContent,
-    }),
-  };
-  const newSelection = TextSelection.create(
+  const fromCursor = getFromCursor({
     doc,
-    newFrom + 1,
-    newTo + 2
-  );
+    initFrom: from,
+    initTo: to,
+  });
+  const toCursor = getToCursor({
+    doc,
+    initFrom: from,
+    initTo: to,
+  });
+  let newSelection = TextSelection.create(doc, fromCursor, toCursor);
   const newSelectionTrax = state.tr.setSelection(newSelection);
   view.updateState(state.apply(newSelectionTrax));
 };
